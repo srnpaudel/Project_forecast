@@ -74,6 +74,46 @@ export const WPX_PERSONNEL_POOL: WPXPerson[] = [
   { id: 'p-10', name: 'Mateo Morales', role: 'Piling & Shoring Specialist', trade: 'Geotechnical Civils', preferredShift: 'night', availableHoursPerDay: 10, siteBadgeNumber: 'WPX-8810', wpxUserId: 'u_mmorales' },
 ];
 
+// Helper to build a fortnight schedule map from Oct 12 to Oct 25 (and Oct 8-11)
+function buildFortnightSchedule(pattern: {
+  dayBase: number;
+  nightBase: number;
+  dayPersonnel: string[];
+  nightPersonnel: string[];
+  noteDays?: Record<string, string>;
+}) {
+  const dates = [
+    '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11',
+    '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16',
+    '2026-10-17', '2026-10-18', '2026-10-19', '2026-10-20', '2026-10-21',
+    '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25'
+  ];
+
+  const schedule: Record<string, any> = {};
+
+  dates.forEach((date, i) => {
+    // slight variation on weekend
+    const isWeekend = i % 7 === 2 || i % 7 === 3;
+    const dayCount = isWeekend ? Math.max(1, pattern.dayBase - 1) : pattern.dayBase + (i % 2 === 0 ? 0 : 1);
+    const nightCount = isWeekend ? Math.max(0, pattern.nightBase - 1) : pattern.nightBase;
+
+    schedule[date] = {
+      date,
+      dayShift: {
+        assignedPeople: pattern.dayPersonnel.slice(0, dayCount).map(pId => ({ personId: pId, hours: 8 })),
+        shiftLeadId: pattern.dayPersonnel[0]
+      },
+      nightShift: {
+        assignedPeople: pattern.nightPersonnel.slice(0, nightCount).map(pId => ({ personId: pId, hours: 8 })),
+        shiftLeadId: pattern.nightPersonnel[0]
+      },
+      notes: pattern.noteDays?.[date]
+    };
+  });
+
+  return schedule;
+}
+
 export const INITIAL_PROJECTS: Project[] = [
   {
     id: 'proj-1',
@@ -90,59 +130,18 @@ export const INITIAL_PROJECTS: Project[] = [
     consumedHours: 1940,
     startDate: '2026-08-01',
     targetCompletionDate: '2026-12-15',
-    schedule: {
-      '2026-10-08': {
-        date: '2026-10-08',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-1', hours: 8 },
-            { personId: 'p-4', hours: 8 },
-            { personId: 'p-9', hours: 8 },
-          ], // 3 People = 24h
-          shiftLeadId: 'p-1'
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-2', hours: 8 },
-            { personId: 'p-10', hours: 8 },
-            { personId: 'p-8', hours: 8 },
-          ], // 3 People = 24h
-          shiftLeadId: 'p-2'
-        },
-        notes: 'Need additional night crew from Thursday.'
-      },
-      '2026-10-09': {
-        date: '2026-10-09',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-1', hours: 8 },
-            { personId: 'p-4', hours: 8 },
-            { personId: 'p-3', hours: 8 },
-          ], // 3 People = 24h
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-2', hours: 8 },
-            { personId: 'p-10', hours: 8 },
-          ], // 2 People = 16h
-        }
-      },
-      '2026-10-10': {
-        date: '2026-10-10',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-4', hours: 8 },
-            { personId: 'p-9', hours: 8 },
-          ], // 2 People = 16h
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-5', hours: 8 },
-            { personId: 'p-8', hours: 8 },
-          ], // 2 People = 16h
-        }
+    schedule: buildFortnightSchedule({
+      dayBase: 3,
+      nightBase: 2,
+      dayPersonnel: ['p-1', 'p-4', 'p-9', 'p-3'],
+      nightPersonnel: ['p-2', 'p-10', 'p-8'],
+      noteDays: {
+        '2026-10-08': 'Need additional night crew from Thursday.',
+        '2026-10-12': 'Heavy crane staged at South Gate. Daylight lift only.',
+        '2026-10-15': 'Shaft 2 geotechnical survey approved.',
+        '2026-10-20': 'Night pour scheduled for 23:00.',
       }
-    },
+    }),
     notes: [
       {
         id: 'n-1',
@@ -188,35 +187,16 @@ export const INITIAL_PROJECTS: Project[] = [
     consumedHours: 5400,
     startDate: '2026-09-01',
     targetCompletionDate: '2027-01-20',
-    schedule: {
-      '2026-10-08': {
-        date: '2026-10-08',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-3', hours: 8 },
-            { personId: 'p-7', hours: 8 },
-          ], // 2 People = 16h
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-5', hours: 8 },
-          ], // 1 Person = 8h
-        }
-      },
-      '2026-10-09': {
-        date: '2026-10-09',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-7', hours: 8 },
-          ],
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-5', hours: 8 },
-          ],
-        }
+    schedule: buildFortnightSchedule({
+      dayBase: 2,
+      nightBase: 2,
+      dayPersonnel: ['p-3', 'p-7', 'p-6'],
+      nightPersonnel: ['p-5', 'p-8', 'p-10'],
+      noteDays: {
+        '2026-10-08': 'Concrete slipform curing delayed due to ambient moisture; required additional overtime crew.',
+        '2026-10-13': 'Over budget alert review with commercial lead.',
       }
-    },
+    }),
     notes: [
       {
         id: 'n-4',
@@ -243,22 +223,16 @@ export const INITIAL_PROJECTS: Project[] = [
     consumedHours: 24, // 2 People day (16h) + 1 Person night (8h) = 24h
     startDate: '2026-10-15',
     targetCompletionDate: '2027-03-30',
-    schedule: {
-      '2026-10-08': {
-        date: '2026-10-08',
-        dayShift: {
-          assignedPeople: [
-            { personId: 'p-6', hours: 8 },
-            { personId: 'p-9', hours: 8 },
-          ], // PRD example: 2 People = 16h
-        },
-        nightShift: {
-          assignedPeople: [
-            { personId: 'p-10', hours: 8 },
-          ], // PRD example: 1 Person = 8h
-        }
+    schedule: buildFortnightSchedule({
+      dayBase: 2,
+      nightBase: 1,
+      dayPersonnel: ['p-6', 'p-9'],
+      nightPersonnel: ['p-10'],
+      noteDays: {
+        '2026-10-08': 'Mobilization stage underway. Long-lead ventilation fans scheduled for arrival in Nov.',
+        '2026-10-14': 'Early contractor involvement walk-through completed.'
       }
-    },
+    }),
     notes: [
       {
         id: 'n-5',
@@ -282,10 +256,98 @@ export const INITIAL_PROJECTS: Project[] = [
     siteContactPhone: '+44 7944 456789',
     siteContactEmail: 'chloe.dubois@johnholland.com',
     budgetHours: 900,
+    variationHours: 0,
     consumedHours: 96,
     startDate: '2026-11-01',
     targetCompletionDate: '2027-02-15',
-    schedule: {}, // State 8: No forecast entered for this date
+    schedule: buildFortnightSchedule({
+      dayBase: 1,
+      nightBase: 0,
+      dayPersonnel: ['p-7', 'p-9'],
+      nightPersonnel: [],
+      noteDays: {
+        '2026-10-16': 'Council traffic closure permit approved for weekend work.'
+      }
+    }),
+    notes: [
+      {
+        id: 'n-6',
+        projectId: 'proj-4',
+        author: 'Chloe Dubois',
+        role: 'QA Inspector',
+        timestamp: 'Oct 7',
+        content: 'Traffic permit lodged with city council.',
+        type: 'general'
+      }
+    ]
+  },
+  // Projects for North Port workspace
+  {
+    id: 'proj-np-1',
+    workspaceId: 'ws-north-port',
+    categoryId: 'cat-live',
+    code: 'NP-LIVE-01',
+    name: 'Wharf Berth 4 Structural Deck Reconstruction',
+    builder: 'McConnell Dowell',
+    projectManager: 'Brendan O’Connor',
+    siteContactPhone: '+44 7955 567890',
+    siteContactEmail: 'brendan.oconnor@mcdgroup.com',
+    budgetHours: 4200,
+    variationHours: 200,
+    consumedHours: 1800,
+    startDate: '2026-07-15',
+    targetCompletionDate: '2026-11-30',
+    schedule: buildFortnightSchedule({
+      dayBase: 3,
+      nightBase: 1,
+      dayPersonnel: ['p-1', 'p-4', 'p-8'],
+      nightPersonnel: ['p-10'],
+    }),
+    notes: []
+  },
+  {
+    id: 'proj-np-2',
+    workspaceId: 'ws-north-port',
+    categoryId: 'cat-post-tender',
+    code: 'NP-POST-01',
+    name: 'Harbor Basin Dredging & Silt Barrier Staging',
+    builder: 'Van Oord Marine',
+    projectManager: 'Mateo Morales',
+    siteContactPhone: '+44 7966 678901',
+    siteContactEmail: 'mateo.morales@vanoord.com',
+    consumedHours: 48,
+    startDate: '2026-10-20',
+    targetCompletionDate: '2027-04-15',
+    schedule: buildFortnightSchedule({
+      dayBase: 2,
+      nightBase: 0,
+      dayPersonnel: ['p-3', 'p-9'],
+      nightPersonnel: [],
+    }),
+    notes: []
+  },
+  // Projects for Renewable Grid workspace
+  {
+    id: 'proj-eg-1',
+    workspaceId: 'ws-energy-grid',
+    categoryId: 'cat-live',
+    code: 'EG-LIVE-01',
+    name: '500kV Transformer Foundation & Bund Wall Enclosure',
+    builder: 'Downer EDI',
+    projectManager: 'Siddharth Patel',
+    siteContactPhone: '+44 7977 789012',
+    siteContactEmail: 'siddharth.patel@downergroup.com',
+    budgetHours: 3600,
+    variationHours: 0,
+    consumedHours: 1250,
+    startDate: '2026-06-01',
+    targetCompletionDate: '2026-12-01',
+    schedule: buildFortnightSchedule({
+      dayBase: 2,
+      nightBase: 1,
+      dayPersonnel: ['p-4', 'p-6'],
+      nightPersonnel: ['p-5'],
+    }),
     notes: []
   }
 ];
@@ -302,7 +364,7 @@ export const INITIAL_SNAPSHOTS: ForecastSnapshot[] = [
     totalConsumed: 3435,
     totalRemaining: 4915,
     projectCount: 4,
-    projectsState: JSON.parse(JSON.stringify(INITIAL_PROJECTS))
+    projectsState: JSON.parse(JSON.stringify(INITIAL_PROJECTS.filter(p => p.workspaceId === 'ws-metro-4a')))
   },
   {
     id: 'snap-v1.1',
@@ -315,6 +377,6 @@ export const INITIAL_SNAPSHOTS: ForecastSnapshot[] = [
     totalConsumed: 2200,
     totalRemaining: 5250,
     projectCount: 3,
-    projectsState: JSON.parse(JSON.stringify(INITIAL_PROJECTS.slice(0, 3)))
+    projectsState: JSON.parse(JSON.stringify(INITIAL_PROJECTS.filter(p => p.workspaceId === 'ws-metro-4a').slice(0, 3)))
   }
 ];

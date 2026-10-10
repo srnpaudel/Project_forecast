@@ -53,13 +53,16 @@ export const EditForecastModal: React.FC<EditForecastModalProps> = ({
   const currentBudget = project.budgetHours || 0;
 
   // Format date helper
-  const dateFormatted = {
-    '2026-10-08': 'Wed, Oct 8',
-    '2026-10-09': 'Thu, Oct 9',
-    '2026-10-10': 'Fri, Oct 10',
-    '2026-10-11': 'Sat, Oct 11',
-    '2026-10-12': 'Sun, Oct 12',
-  }[date] || date;
+  const dateFormatted = React.useMemo(() => {
+    try {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      }
+    } catch {}
+    return date;
+  }, [date]);
 
   const handleSave = () => {
     onSave(project.id, date, dayCount, nightCount, noteText.trim() ? noteText.trim() : undefined);

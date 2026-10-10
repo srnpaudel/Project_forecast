@@ -5,12 +5,14 @@ import {
   WPXPerson,
   Project,
   ShiftType,
+  ForecastSnapshot,
 } from './types/resourceForecast';
 import {
   INITIAL_WORKSPACES,
   INITIAL_CATEGORIES,
   WPX_PERSONNEL_POOL,
   INITIAL_PROJECTS,
+  INITIAL_SNAPSHOTS,
 } from './data/mockForecastData';
 import { MondayHeader } from './components/monday/MondayHeader';
 import { CategoryTreeSidebar } from './components/monday/CategoryTreeSidebar';
@@ -19,6 +21,11 @@ import { AssignPersonModal } from './components/forecast/AssignPersonModal';
 import { ProjectNotesModal } from './components/forecast/ProjectNotesModal';
 import { CategoryManagerModal } from './components/forecast/CategoryManagerModal';
 import { EditForecastModal } from './components/forecast/EditForecastModal';
+import { PrdAnalysisView } from './components/forecast/PrdAnalysisView';
+import { SnapshotsView } from './components/forecast/SnapshotsView';
+import { Section8TopHeader } from './components/forecast/Section8TopHeader';
+import { ResourceForecastBoard } from './components/forecast/ResourceForecastBoard';
+import { TakeSnapshotModal } from './components/forecast/TakeSnapshotModal';
 
 export default function App() {
   // Core state loaded from WPX ecosystem
@@ -28,6 +35,15 @@ export default function App() {
   const [personnel] = useState<WPXPerson[]>(WPX_PERSONNEL_POOL);
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   
+  // View mode: 'board' (Matrix table) | 'prd' (PRD documentation & architecture) | 'snapshots' (Audit baseline milestones)
+  const [activeView, setActiveView] = useState<'board' | 'prd' | 'snapshots'>('board');
+
+  // Shift filter: 'both' | 'day' | 'night'
+  const [shiftFilter, setShiftFilter] = useState<'both' | 'day' | 'night'>('both');
+
+  // Snapshots state
+  const [snapshots, setSnapshots] = useState<ForecastSnapshot[]>(INITIAL_SNAPSHOTS);
+
   // Date horizon state (e.g. Wed Oct 8)
   const [selectedDate, setSelectedDate] = useState<string>('2026-10-08');
 
@@ -53,6 +69,7 @@ export default function App() {
   const [notesModalProject, setNotesModalProject] = useState<Project | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isTakeSnapshotModalOpen, setIsTakeSnapshotModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -367,95 +384,73 @@ export default function App() {
     }
   });
 
+  // Handle taking an immutable snapshot
+  const handleTakeSnapshot = (version: string, author: string, summary: string) => {
+    const newSnapshot: ForecastSnapshot = {
+      id: `snap-${Date.now()}`,
+      workspaceId: activeWorkspace.id,
+      version,
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      createdBy: author,
+      summary,
+      totalBudget,
+      totalConsumed,
+      totalRemaining,
+      projectCount: currentWorkspaceProjects.length,
+      projectsState: JSON.parse(JSON.stringify(currentWorkspaceProjects)),
+    };
+    setSnapshots((prev) => [newSnapshot, ...prev]);
+    showToast(`Snapshot ${version} recorded successfully!`);
+  };
+
   return (
-    <div className="min-h-screen bg-[#f5f6f8] text-[#323338] font-sans flex flex-col selection:bg-[#0073ea] selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans flex flex-col selection:bg-[#0073ea] selection:text-white">
       
-      {/* Clean Top Header with integrated KPI metrics (Budget, Consumed, Remaining, Shift Roster) */}
-      <MondayHeader
+      {/* Top Navy Banner (PRD Section 8 Wireframe Header) */}
+      <Section8TopHeader
         workspace={activeWorkspace}
-        workspaces={workspaces}
-        onSelectWorkspace={(ws) => {
-          setActiveWorkspace(ws);
-          setSelectedCategoryId(null);
-          setSelectedProjectId(null);
-          showToast(`Switched workspace to: ${ws.name}`);
-        }}
-        totalBudget={totalBudget}
-        totalConsumed={totalConsumed}
-        totalRemaining={totalRemaining}
-        dayHeadcount={dayHeadcount}
-        nightHeadcount={nightHeadcount}
-        selectedDate={selectedDate}
-        isSidebarCollapsed={isSidebarCollapsed}
-        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+        activeView={activeView}
+        onChangeView={(view) => setActiveView(view)}
+        snapshotCount={snapshots.length}
       />
 
-      {/* Main Layout: Left Category Tree Sidebar + Right Forecast Board */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* Left Side: Category Tree with (+) icon at top as requested */}
-        <CategoryTreeSidebar
-          workspace={activeWorkspace}
-          workspaces={workspaces}
-          onSelectWorkspace={(ws) => {
-            setActiveWorkspace(ws);
-            setSelectedCategoryId(null);
-            setSelectedProjectId(null);
-            showToast(`Switched workspace to: ${ws.name}`);
-          }}
-          categories={categories}
-          projects={projects.filter((p) => p.workspaceId === activeWorkspace.id)}
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={(catId) => {
-            setSelectedCategoryId(catId);
-            setSelectedProjectId(null);
-          }}
-          selectedProjectId={selectedProjectId}
-          onSelectProject={(projId) => {
-            setSelectedProjectId(projId);
-          }}
-          onOpenAddCategory={() => setCategoryModalOpen(true)}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-        />
-
-        {/* Right Side: Main Clean Workspace Forecast Board */}
-        <main className="flex-1 p-6 overflow-y-auto w-full space-y-6">
-          {/* Active Filter Indicator if filtered by Category Tree */}
-          {(selectedCategoryId || selectedProjectId) && (
-            <div className="bg-white border border-[#b2d9fc] px-4 py-2 rounded-lg flex items-center justify-between text-xs shadow-2xs">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-[#0073ea]">Active Filter:</span>
-                {selectedCategoryId && (
-                  <span className="bg-[#f0f7ff] text-[#0073ea] font-medium px-2 py-0.5 rounded border border-[#b2d9fc]">
-                    Status: {categories.find((c) => c.id === selectedCategoryId)?.name}
-                  </span>
-                )}
-                {selectedProjectId && (
-                  <span className="bg-[#f0f7ff] text-[#0073ea] font-medium px-2 py-0.5 rounded border border-[#b2d9fc]">
-                    Project: {projects.find((p) => p.id === selectedProjectId)?.name}
-                  </span>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setSelectedCategoryId(null);
-                  setSelectedProjectId(null);
-                }}
-                className="text-xs text-[#676879] hover:text-[#0073ea] underline cursor-pointer"
-              >
-                Clear Filter (View All)
-              </button>
-            </div>
-          )}
-
-          <MondayGroupTable
-            projects={currentWorkspaceProjects}
-            categories={displayedCategories}
+      {/* Main Content Area based on activeView */}
+      {activeView === 'prd' ? (
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+          <PrdAnalysisView onNavigateToBoard={() => setActiveView('board')} />
+        </main>
+      ) : activeView === 'snapshots' ? (
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full">
+          <SnapshotsView
+            snapshots={snapshots}
+            onTakeSnapshot={handleTakeSnapshot}
+            currentProjects={currentWorkspaceProjects}
+            totalBudget={totalBudget}
+            totalConsumed={totalConsumed}
+            totalRemaining={totalRemaining}
+            onNavigateToBoard={() => setActiveView('board')}
+          />
+        </main>
+      ) : (
+        /* PRD Section 8 Clean, High-Efficiency Unified Forecast Matrix */
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto w-full max-w-[1780px] mx-auto space-y-4">
+          <ResourceForecastBoard
+            workspace={activeWorkspace}
+            workspaces={workspaces}
+            onSelectWorkspace={(ws) => {
+              setActiveWorkspace(ws);
+              setSelectedCategoryId(null);
+              setSelectedProjectId(null);
+              showToast(`Switched workspace to: ${ws.name}`);
+            }}
+            categories={categories}
+            projects={projects}
             personnelPool={personnel}
-            selectedDate={selectedDate}
-            setSelectedDate={setSelectedDate}
+            shiftFilter={shiftFilter}
+            setShiftFilter={(filter) => {
+              setShiftFilter(filter);
+              showToast(`Shift view: ${filter === 'both' ? 'All Shifts' : filter === 'day' ? 'Day Shift Only' : 'Night Shift Only'}`);
+            }}
             onOpenEditForecast={(proj, dt, shift) =>
               setEditForecastModalData({ project: proj, date: dt, initialShift: shift })
             }
@@ -463,18 +458,30 @@ export default function App() {
             onUpdateBudget={handleUpdateBudget}
             onUpdateVariation={handleUpdateVariation}
             onDuplicateShiftToNextDay={handleDuplicateShiftToNextDay}
+            onTakeSnapshot={() => setIsTakeSnapshotModalOpen(true)}
+            onViewPrd={() => setActiveView('prd')}
+            onViewSnapshots={() => setActiveView('snapshots')}
+            showToast={showToast}
           />
         </main>
-
-      </div>
+      )}
 
       {/* Floating Fast Feedback Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#323338] text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 animate-in slide-in-from-bottom duration-150">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1e293b] text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium flex items-center gap-2 animate-in slide-in-from-bottom duration-150 border border-slate-700">
           <span className="w-2 h-2 rounded-full bg-[#00c875]" />
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* Take Snapshot Modal */}
+      <TakeSnapshotModal
+        isOpen={isTakeSnapshotModalOpen}
+        onClose={() => setIsTakeSnapshotModalOpen(false)}
+        onSave={handleTakeSnapshot}
+        workspaceName={activeWorkspace.name}
+        projectCount={currentWorkspaceProjects.length}
+      />
 
       {/* Edit Forecast Modal (PRD Section 10 & 20: Stepper for Day & Night People -> Calculates Consumed Hours) */}
       {editForecastModalData && (

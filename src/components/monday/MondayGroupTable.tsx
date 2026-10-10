@@ -32,6 +32,8 @@ interface MondayGroupTableProps {
   personnelPool: WPXPerson[];
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  shiftFilter?: 'both' | 'day' | 'night';
+  setShiftFilter?: (filter: 'both' | 'day' | 'night') => void;
   onOpenEditForecast: (project: Project, date: string, shiftFilter?: 'both' | 'day' | 'night') => void;
   onOpenNotes: (project: Project) => void;
   onUpdateBudget: (projectId: string, newBudget: number) => void;
@@ -45,6 +47,8 @@ export const MondayGroupTable: React.FC<MondayGroupTableProps> = ({
   personnelPool,
   selectedDate,
   setSelectedDate,
+  shiftFilter: controlledShiftFilter,
+  setShiftFilter: controlledSetShiftFilter,
   onOpenEditForecast,
   onOpenNotes,
   onUpdateBudget,
@@ -55,7 +59,9 @@ export const MondayGroupTable: React.FC<MondayGroupTableProps> = ({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   // Shift view filter: all ('both'), day ('day'), night ('night')
-  const [shiftFilter, setShiftFilter] = useState<'both' | 'day' | 'night'>('both');
+  const [internalShiftFilter, setInternalShiftFilter] = useState<'both' | 'day' | 'night'>('both');
+  const shiftFilter = controlledShiftFilter ?? internalShiftFilter;
+  const setShiftFilter = controlledSetShiftFilter ?? setInternalShiftFilter;
 
   // Inline editing state for Live Project Budget Hours
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
